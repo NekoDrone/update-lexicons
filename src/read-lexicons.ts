@@ -36,7 +36,7 @@ export const readLexicons = async (workspaceRoot: string) => {
         }
 
         // check for id matching location of file
-        if (!("id" in content)){
+        if (!("id" in content)) {
             console.warn(
                 "Skipping lexicon with no `id` field. Found at",
                 `\`${relativePath}\`.`,
