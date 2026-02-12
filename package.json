@@ -7,7 +7,7 @@
         "test": "echo \"Error: no test specified\" && exit 1",
         "dev:full-rebuild": "rm tsconfig.tsbuildinfo && pnpm dev",
         "lint": "eslint --fix",
-        "dev": "tsx src/index.ts",
+        "dev": "local-action . src/index.ts .env",
         "build": "tsdown src/index.ts",
         "start": "pnpm build && node dist/index.cjs"
     },
@@ -27,6 +27,8 @@
         "typescript-eslint": "^8.46.0"
     },
     "dependencies": {
+        "@actions/core": "^3.0.0",
+        "@github/local-action": "^7.0.0",
         "tsx": "^4.20.6"
     }
 }
