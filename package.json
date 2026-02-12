@@ -1,0 +1,27 @@
+{
+    "name": "typescript-template",
+    "version": "0.0.1",
+    "description": "typescript nix template for node (server) PLEASE CHANGE THIS",
+    "main": "index.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "dev": "tsx src/index.ts"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "packageManager": "pnpm@10.18.0",
+    "devDependencies": {
+        "@eslint/js": "^9.37.0",
+        "@types/node": "^24.7.1",
+        "eslint": "^9.37.0",
+        "globals": "^16.4.0",
+        "jiti": "^2.6.1",
+        "prettier": "^3.6.2",
+        "typescript": "^5.9.3",
+        "typescript-eslint": "^8.46.0"
+    },
+    "dependencies": {
+        "tsx": "^4.20.6"
+    }
+}
