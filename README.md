@@ -8,8 +8,8 @@ as described by the [lexicon resolution](https://atproto.com/specs/lexicon#lexic
 
 specifically, if you have a lexicon collection, e.g. `dev.sylfr.feed.post`, you can resolve all other `dev.sylfr.feed.*` lexicons by doing the following.
 
-1. on a pds repository, for each lexicon in that collection, create a record under the `com.atproto.lexicon.schema` with the record-key as the full nsid of that lexicon. e.g. `dev.sylfr.feed.getPost`.
-2. setup your dns to return the did of that repository in a TXT record when queried at the mirror of the lexicon collection namespace with `_lexicon` prepended. e.g. `_lexicon.feed.dev.sylfr.dev` which would return `did:plc:<whatever>` or even `did:web:<whatever>` in a TXT record.
+1. on a pds repository, for each lexicon in that collection, create a record under the `com.atproto.lexicon.schema` collection with the record-key as the full nsid of that lexicon. e.g. `dev.sylfr.feed.getPost`.
+2. setup your dns to return the did of that repository in a TXT record when queried at the mirror of the lexicon collection namespace with `_lexicon` prepended. e.g. `_lexicon.feed.sylfr.dev` (drop the name of the lexicon itself, `getPost`.) which would return `did:plc:<whatever>` or even `did:web:<whatever>` in a TXT record.
 
 this allows for two things. the first is that the controlling authority of the domain can now officially state what their lexicons are. since bluesky social pbc controls `bsky.app`, all of the lexicons under `app.bsky.*` are under pbc's control and authority.
 
