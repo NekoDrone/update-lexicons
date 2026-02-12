@@ -1,7 +1,15 @@
-import { message } from "@/hello";
+import { readLexicons } from "@/read-lexicons";
 
-const main = () => {
-    console.log(message);
+const main = async () => {
+    const workspaceRoot = process.env.GITHUB_WORKSPACE ?? process.cwd();
+    await readLexicons(workspaceRoot);
 };
 
-main();
+main()
+    .then(() => {
+        console.log("yeag");
+    })
+    .catch((e: unknown) => {
+        console.error("Something went wrong");
+        console.error(e);
+    });
