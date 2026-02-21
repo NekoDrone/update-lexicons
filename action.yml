@@ -1,0 +1,16 @@
+name: "Update Lexicons"
+author: "NekoDrone"
+description: "Reads your project's lexicons and pushes them to a specified repository on a PDS."
+inputs:
+    repo-did:
+        description: "did:plc or did:web of the repository."
+        required: true
+    app-password:
+        description: "App password that allows writes to the repository"
+        required: true
+# outputs:
+#     response:
+#         updated-lexicons: ""
+runs:
+    using: "node20"
+    main: "dist/index.js" # or 'index.js' if not bundling
