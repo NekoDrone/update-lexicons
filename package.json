@@ -1,6 +1,6 @@
 {
     "name": "typescript-template",
-    "version": "0.0.1",
+    "version": "1.0.0",
     "description": "typescript nix template for node (server) PLEASE CHANGE THIS",
     "main": "index.js",
     "scripts": {
