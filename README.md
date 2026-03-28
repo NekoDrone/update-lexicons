@@ -19,6 +19,63 @@ this tool allows you to perform the updating of your lexicons to a repo as part 
 
 ## usage
 
-\[TODO\] but tl;dr, provide it as an action, then provide the did of a repo where you'd like to host the records, as well as the password for accessing that repo (i don't think i can ever support oauth cause this is ci) as action secrets.
+### prerequisites
 
-the action will resolve your did through [plc.directory](https://plc.directory/), read your lexicons under `lexicons/` at your project root, and then publish the records it finds (recursively).
+- a PDS repository with a `did:plc` or `did:web`
+- an [app password](https://bsky.app/settings/app-passwords) for that repository
+
+### lexicon file setup
+
+place your lexicon JSON files in a `lexicons/` directory at the root of your project. the directory structure should mirror the NSID segments of each lexicon.
+
+for example, for the NSID `dev.sylfr.feed.like`:
+
+```
+lexicons/
+  dev/
+    sylfr/
+      feed/
+        like.json
+```
+
+the action reads this directory recursively, so you can have as many lexicons as you need.
+
+### workflow example
+
+```yaml
+name: Publish Lexicons
+on:
+  push:
+    branches: [main]
+    paths:
+      - "lexicons/**"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: NekoDrone/update-lexicons@v1
+        with:
+          repo-did: ${{ secrets.REPO_DID }}
+          app-password: ${{ secrets.APP_PASSWORD }}
+```
+
+add `REPO_DID` and `APP_PASSWORD` as [repository secrets](https://docs.github.com/en/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions) in your GitHub repo settings.
+
+### inputs
+
+| input | required | description |
+|---|---|---|
+| `repo-did` | yes | `did:plc` or `did:web` of the target repository |
+| `app-password` | yes | app password that allows writes to the repository |
+
+### what the action does
+
+1. resolves your DID document (via [plc.directory](https://plc.directory/) for `did:plc`, or `.well-known/did.json` for `did:web`) to find the PDS service endpoint.
+2. authenticates with the PDS using the provided app password.
+3. reads all lexicon files from `lexicons/` recursively.
+4. fetches existing `com.atproto.lexicon.schema` records from the repo and compares them — creates new records, updates changed ones, and skips unchanged ones.
+5. verifies DNS TXT records for each lexicon namespace (e.g. `_lexicon.feed.sylfr.dev`) and warns if they don't point to the expected DID.
+6. outputs a summary table of results to the GitHub Actions job summary.
