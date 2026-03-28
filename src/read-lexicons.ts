@@ -83,6 +83,7 @@ export const readLexicons = async (workspaceRoot: string) => {
                 `\`${relativePath}\`. ` +
                 "If the defs field is empty then you don't have a lexicon. This shouldn't happen!!!!",
             );
+            continue;
         }
 
         files.push({
