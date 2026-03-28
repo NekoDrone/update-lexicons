@@ -1,6 +1,8 @@
 name: "Update Lexicons"
 author: "NekoDrone"
 description: "Reads your project's lexicons and pushes them to a specified repository on a PDS."
+icon: "book"
+color: "purple"
 inputs:
     repo-did:
         description: "did:plc or did:web of the repository."
