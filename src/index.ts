@@ -1,12 +1,18 @@
 import { readLexicons } from "@/read-lexicons";
-import { didWebToUrl, findAtprotoPds } from "@/utils";
+import { didWebToUrl, fetchExistingLexicons, findAtprotoPds } from "@/utils";
 import * as core from "@actions/core";
 import { Client, ok } from "@atcute/client";
 import { PasswordSession } from "@atcute/password-session";
-import type { } from "@atcute/atproto";
-import { publishLexicon } from "@/publish-lexicon";
+import type {} from "@atcute/atproto";
+import { publishLexicon, updateLexicon } from "@/publish-lexicon";
+
+type LexiconResult =
+    | { status: "created"; uri: string; cid: string }
+    | { status: "updated"; uri: string; cid: string }
+    | { status: "skipped"; nsid: string };
 
 export const run = async () => {
+    // Step 0: Get inputs.
     const repoDid = core.getInput("repo-did", { required: true });
     if (!repoDid.startsWith("did:plc:") && !repoDid.startsWith("did:web:")) {
         core.setFailed(
@@ -22,11 +28,13 @@ export const run = async () => {
             "Provided input app-password is an empty string. Are you sure you've provided one?",
         );
 
+    // Step 1: Read lexicons and create working array.
     const workspaceRoot = process.env.GITHUB_WORKSPACE ?? process.cwd();
     const lexicons = await readLexicons(workspaceRoot);
 
     core.info(`Found ${lexicons.length.toString()} lexicons in \`/lexicons\`.`);
 
+    // Step 2: Resolve PDS service endpoint.
     let didDocUrl: string;
     if (repoDid.startsWith("did:plc:")) {
         core.info(
@@ -57,6 +65,7 @@ export const run = async () => {
         return;
     }
 
+    // Step 3: Authenticate with target PDS.
     const authSession = await PasswordSession.login({
         service: atprotoService.serviceEndpoint,
         identifier: repoDid,
@@ -75,12 +84,59 @@ export const run = async () => {
         );
     }
 
-    const promises = lexicons.map((lexicon) =>
-        publishLexicon({ lexiconFile: lexicon, client: xrpcClient, session }),
+    // Step 4: Look up existing lexicons to compare diffs.
+    const existingLexicons = await fetchExistingLexicons(
+        xrpcClient,
+        session.did,
     );
+
+    core.info(
+        `Found ${existingLexicons.size.toString()} existing lexicons on the PDS.`,
+    );
+
+    // Steps 5: Update changed lexicons, create new ones, skip unchanged.
+    const promises = lexicons.map(async (lexicon): Promise<LexiconResult> => {
+        const existing = existingLexicons.get(lexicon.nsid);
+        const localRecord = {
+            $type: "com.atproto.lexicon.schema" as const,
+            ...(lexicon.lexicon as object),
+        };
+
+        if (existing) {
+            if (
+                JSON.stringify(localRecord) === JSON.stringify(existing.value)
+            ) {
+                return { status: "skipped", nsid: lexicon.nsid };
+            }
+
+            const result = await updateLexicon({
+                lexiconFile: lexicon,
+                client: xrpcClient,
+                session,
+                swapRecord: existing.cid,
+            });
+            return {
+                status: "updated",
+                uri: result.uri,
+                cid: result.cid,
+            };
+        }
+
+        const result = await publishLexicon({
+            lexiconFile: lexicon,
+            client: xrpcClient,
+            session,
+        });
+        return {
+            status: "created",
+            uri: result.uri,
+            cid: result.cid,
+        };
+    });
 
     const results = await Promise.allSettled(promises);
 
+    // Step 6: Prepare output info log.
     const tableRows: Parameters<typeof core.summary.addTable>[0] = [
         [
             { data: "NSID", header: true },
@@ -95,10 +151,26 @@ export const run = async () => {
         const nsid = lexicons[i].nsid;
 
         if (result.status === "fulfilled") {
-            core.info(
-                `Published ${nsid} — uri: ${result.value.uri}, cid: ${result.value.cid}`,
-            );
-            tableRows.push([nsid, "Published", result.value.uri]);
+            const value = result.value;
+
+            switch (value.status) {
+                case "created":
+                    core.info(
+                        `Created ${nsid} — uri: ${value.uri}, cid: ${value.cid}`,
+                    );
+                    tableRows.push([nsid, "Created", value.uri]);
+                    break;
+                case "updated":
+                    core.info(
+                        `Updated ${nsid} — uri: ${value.uri}, cid: ${value.cid}`,
+                    );
+                    tableRows.push([nsid, "Updated", value.uri]);
+                    break;
+                case "skipped":
+                    core.info(`Skipped ${nsid} — no changes detected.`);
+                    tableRows.push([nsid, "Skipped", "No changes"]);
+                    break;
+            }
         } else {
             failCount++;
             const message =

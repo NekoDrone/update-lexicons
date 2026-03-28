@@ -1,3 +1,7 @@
+import { resolveTxt } from "node:dns/promises";
+import type { Client } from "@atcute/client";
+import { ok } from "@atcute/client";
+
 export const didWebToUrl = (did: string): string => {
     const stripped = did.slice("did:web:".length);
     const segments = stripped.split(":");
@@ -33,4 +37,60 @@ export const findAtprotoPds = (
             service.type === "AtprotoPersonalDataServer"
         );
     }) as { id: string; type: string; serviceEndpoint: string } | undefined;
+};
+
+export const nsidToLexiconDomain = (nsid: string): string => {
+    const segments = nsid.split(".");
+    segments.pop();
+    segments.reverse();
+    return `_lexicon.${segments.join(".")}`;
+};
+
+export const fetchExistingLexicons = async (
+    client: Client,
+    did: `did:${string}:${string}`,
+): Promise<Map<string, { cid: string; value: unknown }>> => {
+    const existing = new Map<string, { cid: string; value: unknown }>();
+    let cursor: string | undefined;
+
+    do {
+        const res = await ok(
+            client.get("com.atproto.repo.listRecords", {
+                params: {
+                    repo: did,
+                    collection: "com.atproto.lexicon.schema",
+                    limit: 100,
+                    cursor,
+                },
+            }),
+        );
+
+        for (const record of res.records) {
+            const parts = record.uri.split("/");
+            const rkey = parts[parts.length - 1];
+            existing.set(rkey, { cid: record.cid, value: record.value });
+        }
+
+        cursor = res.cursor;
+    } while (cursor);
+
+    return existing;
+};
+
+export const resolveLexiconDid = async (
+    nsid: string,
+): Promise<string | undefined> => {
+    const domain = nsidToLexiconDomain(nsid);
+    try {
+        const records = await resolveTxt(domain);
+        for (const chunks of records) {
+            const record = chunks.join("");
+            if (record.startsWith("did=")) {
+                return record.slice("did=".length);
+            }
+        }
+        return undefined;
+    } catch {
+        return undefined;
+    }
 };
