@@ -1,5 +1,11 @@
 import { readLexicons } from "@/read-lexicons";
-import { didWebToUrl, fetchExistingLexicons, findAtprotoPds } from "@/utils";
+import {
+    didWebToUrl,
+    fetchExistingLexicons,
+    findAtprotoPds,
+    nsidToLexiconDomain,
+    resolveLexiconDid,
+} from "@/utils";
 import * as core from "@actions/core";
 import { Client, ok } from "@atcute/client";
 import { PasswordSession } from "@atcute/password-session";
@@ -136,7 +142,38 @@ export const run = async () => {
 
     const results = await Promise.allSettled(promises);
 
-    // Step 6: Prepare output info log.
+    // Step 6: Verify DNS TXT records for lexicon namespaces.
+    const domainToNsid = new Map<string, string>();
+    for (const lexicon of lexicons) {
+        const domain = nsidToLexiconDomain(lexicon.nsid);
+        if (!domainToNsid.has(domain)) {
+            domainToNsid.set(domain, lexicon.nsid);
+        }
+    }
+
+    const dnsResults = await Promise.allSettled(
+        [...domainToNsid.entries()].map(async ([domain, nsid]) => {
+            const resolvedDid = await resolveLexiconDid(nsid);
+            return { domain, resolvedDid };
+        }),
+    );
+
+    for (const result of dnsResults) {
+        if (result.status === "fulfilled") {
+            const { domain, resolvedDid } = result.value;
+            if (resolvedDid === undefined) {
+                core.warning(
+                    `DNS TXT lookup for ${domain} did not resolve to any DID (expected ${repoDid}). For proper lexicon resolution, please set your DNS records as shown in the spec here. https://atproto.com/specs/lexicon#lexicon-publication-and-resolution`,
+                );
+            } else if (resolvedDid !== repoDid) {
+                core.warning(
+                    `DNS TXT lookup for ${domain} resolved to ${resolvedDid}, expected ${repoDid}. Are you sure you've set your DNS records correctly?`,
+                );
+            }
+        }
+    }
+
+    // Step 7: Prepare output info log.
     const tableRows: Parameters<typeof core.summary.addTable>[0] = [
         [
             { data: "NSID", header: true },
